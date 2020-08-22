@@ -1,52 +1,36 @@
 from collections import defaultdict
 import concurrent.futures
-import time
+import re
 import threading
+import time
 
-from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.chrome.options import Options
 
 
 thread_local = threading.local()
-# values = defaultdict(dict)
-
-
-def scrape():
-    url = "https://app.careerfairplus.com/gt_ga/fair/2660/"
-    driver = get_driver()
-    driver.get(url)
-    time.sleep(3)
-    return driver.find_elements_by_css_selector("div[style='cursor: pointer;']")
 
 
 def get_driver():
     driver = getattr(thread_local, 'driver', None)
     if not driver:
-        print("Creating new driver")
         options = Options()
         options.headless = True
         options.add_argument("--window-size=1440,422")
         driver = webdriver.Chrome(options=options)
         setattr(thread_local, 'driver', driver)
-    print(f"Returning driver {driver}")
     return driver
 
 
-def get_timeslots(company):
+def get_timeslots(company_xpath):
     driver = get_driver()
-    print(company.text)
-    print(company.parent)
-    # print(f"Finding timeslots for {company.text} with {driver}")
+    driver.get("https://app.careerfairplus.com/gt_ga/fair/2660/")
+    time.sleep(2)
+    company = driver.find_element_by_xpath(company_xpath)
+    print(f"Finding timeslots for {company.text} with {driver}")
     company.click()
     time.sleep(2)
-    print(f"I'm awake again with {driver}")
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    print(soup)
-    employer_card = soup.find("div", {"class": "desktop-employer-card-container"})
-    title = employer_card.find("div", {"class": "employer-card-title"})
-    print(title.text)
     try:
         meetings = driver.find_element_by_xpath("//*[@id='root']/div/div/div/div[3]/div/div[5]/div/div[1]/div["
                                                 "1]/div/div")
@@ -64,15 +48,27 @@ def get_timeslots(company):
             values[company.text][name.text] = timeslots.text
         except NoSuchElementException:
             pass
-    return values
+    return dict(values)
+
+
+def get_company_xpaths():
+    url = "https://app.careerfairplus.com/gt_ga/fair/2660/"
+    driver = get_driver()
+    driver.get(url)
+    time.sleep(2)
+    num_companies_text = driver.find_element_by_xpath("//*[@id='root']/div/div/div/div[2]/li").text
+    num_companies = int(re.findall('\d{3}', num_companies_text)[0])
+    # return [f"//*[@id='root']/div/div/div/div[2]/ul/div[{i}]"
+    #         for i in range(2, 6)]
+    return [f"//*[@id='root']/div/div/div/div[2]/ul/div[{i}]"
+            for i in range(2, num_companies + 2)]
 
 
 if __name__ == "__main__":
-    companies = scrape()
-    print(f"Companies to scrape: {', '.join([company.text for company in companies])}")
+    companies = get_company_xpaths()
+    available_timeslots = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        results = executor.map(get_timeslots, companies)
-        for future in concurrent.futures.as_completed(results):
-            print(future.result())
-        # return {company: results for company}
-    # print(values)
+        for result in executor.map(get_timeslots, companies):
+            available_timeslots = {**available_timeslots, **result}
+    get_driver().quit()
+    print(len(available_timeslots))
