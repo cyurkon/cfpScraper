@@ -1,5 +1,12 @@
-# WebStorm
+# PyCharm
 .idea/
 
 # Environment
 venv/
+.env
+
+# pycache
+__pycache__/
+
+# Database
+timeslots.db
