@@ -22,11 +22,10 @@ if __name__ == "__main__":
                 timeslots[company] = num_slots - prev.num_slots
             prev.num_slots = num_slots
             session.add(prev)
-            session.commit()
         else:
             session.add(Companies(name=company, num_slots=num_slots))
-            session.commit()
             timeslots[company] = num_slots
+        session.commit()
     session.close()
     message = "\n".join([f"{k} has {v} slots." for k, v in timeslots.items()])
     try:

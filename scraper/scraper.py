@@ -17,8 +17,7 @@ timeout = 8
 
 
 def get_driver():
-    driver = getattr(thread_local, 'driver', None)
-    if not driver:
+    if not (driver := getattr(thread_local, 'driver', None)):
         options = Options()
         options.binary_location = os.environ.get("GOOGLE_CHROME_BIN")
         options.headless = True
@@ -90,6 +89,8 @@ def get_company_timeslots(company_xpath):
             num_slots[company_name] += int(timeslots.get_attribute("innerText"))
         except NoSuchElementException:
             pass
+        except ValueError:
+            print(f"{company_name} has non-numeric timeslots.")
     return dict(num_slots)
 
 
