@@ -1,22 +1,40 @@
-import json
+import os
 
-from sqlalchemy import desc
+from twilio.base.exceptions import TwilioRestException
+from twilio.rest import Client
 
-from scraper.models import Session, Timeslots
+from scraper.models import Companies, Session
 from scraper.scraper import scrape
-from scraper.utils import diff, format_message, send_text
+
+
+client = Client(os.getenv("ACCOUNT_SID"), os.getenv("AUTH_TOKEN"))
 
 
 if __name__ == "__main__":
-    curr_timeslots = scrape()
-    print(curr_timeslots)
+    companies = scrape()
+    timeslots = {}
     session = Session()
-    if record := session.query(Timeslots).order_by(desc(Timeslots.id)).first():
-        prev_timeslots = json.loads(record.timeslots)
-        new_timeslots = diff(prev_timeslots, curr_timeslots)
-        message = format_message(new_timeslots)
-    else:
-        message = format_message(curr_timeslots)
-    send_text(message)
-    session.add(Timeslots(timeslots=json.dumps(curr_timeslots)))
-    session.commit()
+    for company, num_slots in companies.items():
+        if prev := session.query(Companies).filter(Companies.name == company).first():
+            if num_slots == prev.num_slots:
+                continue
+            elif num_slots > prev.num_slots:
+                timeslots[company] = num_slots - prev.num_slots
+            prev.num_slots = num_slots
+            session.add(prev)
+            session.commit()
+        else:
+            session.add(Companies(name=company, num_slots=num_slots))
+            session.commit()
+            timeslots[company] = num_slots
+    session.close()
+    message = "\n".join([f"{k} has {v} slots." for k, v in timeslots.items()])
+    try:
+        client.messages.create(
+            body=message,
+            from_=os.getenv("TWILIO_PHONE"),
+            to=os.getenv("PERSONAL_PHONE")
+        )
+    except TwilioRestException as e:
+        print(e.msg)
+

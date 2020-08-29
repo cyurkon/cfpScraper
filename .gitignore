@@ -8,5 +8,5 @@ venv/
 # pycache
 __pycache__/
 
-# Database
-timeslots.db
+# Databases
+cfpScraper.db
