@@ -112,6 +112,6 @@ def scrape():
     num_slots = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=int(os.environ.get("MAX_WORKERS"))) as executor:
         for result in executor.map(get_company_timeslots, companies):
-            num_slots = {**num_slots, **result}
+            num_slots |= result
     get_driver().quit()
     return num_slots

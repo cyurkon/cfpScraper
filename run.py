@@ -27,7 +27,7 @@ if __name__ == "__main__":
             timeslots[company] = num_slots
         session.commit()
     session.close()
-    message = "\n".join([f"{k} has {v} slots." for k, v in timeslots.items()])
+    message = "\n".join([f"{k} has {v} new slots." for k, v in timeslots.items()])
     try:
         client.messages.create(
             body=message,
